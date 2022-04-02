@@ -1,5 +1,5 @@
 from .job import Job
-from .orchestrator import Orchestrator
+from .orchestrator import Orchestrator, Trigger
 from .step import Step, StepRequest, StepResponse, Message
 from .command import Command
 
@@ -11,4 +11,5 @@ __all__ = (
     "StepResponse",
     "Message",
     "Command",
+    "Trigger",
 )

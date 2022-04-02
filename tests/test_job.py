@@ -1,4 +1,5 @@
 import asyncio
+from itertools import product
 import uuid
 import pytest
 
@@ -7,13 +8,15 @@ from orchestrator.job import JobResult, StepStatus
 
 from .jobdefs import ReadySetGoJob, _Resp
 from .util import wait_for
+from .dummy_broker import DummyBroker
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_job():
+async def test_job(dummy_broker: DummyBroker):
     corr_id = str(uuid.uuid1())
-    job = ReadySetGoJob(correlation_id=corr_id)
+    producer = await dummy_broker.get_producer()
+    job = ReadySetGoJob(correlation_id=corr_id, producer=producer)
 
     # ready
     job.handle_message(
@@ -43,9 +46,10 @@ async def test_job():
     assert job._step_states[2].response_payload.num == 2
 
 
-async def test_job_fail():
+async def test_job_fail(dummy_broker: DummyBroker):
     corr_id = str(uuid.uuid1())
-    job = ReadySetGoJob(correlation_id=corr_id)
+    producer = await dummy_broker.get_producer()
+    job = ReadySetGoJob(correlation_id=corr_id, producer=producer)
 
     # "set", skip "ready"
     job.handle_message(

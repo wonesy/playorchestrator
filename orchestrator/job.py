@@ -3,10 +3,11 @@ import asyncio
 from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from orchestrator.exceptions import JobAlreadyComplete, JobNotStarted
 from orchestrator.step import Message, Step
+from orchestrator.broker import Producer
 
 
 class JobResult(Enum):
@@ -32,8 +33,10 @@ class StepState:
 class Job(ABC):
     steps: list[Step]
 
-    def __init__(self, correlation_id: str) -> None:
+    def __init__(self, correlation_id: str, producer: Producer) -> None:
         self.correlation_id = correlation_id
+        self._producer = producer
+
         self._current_step_idx: int = 0
         self._step_states: list[StepState] = [
             StepState(
@@ -81,12 +84,19 @@ class Job(ABC):
 
     async def _start(self) -> None:
         for i, step_state in enumerate(self._step_states):
-            # TODO issue request COMMAND here
-            # ...
-
             self._current_step_idx = i
             step_state.status = StepStatus.STARTED
 
+            # send the request
+            req = step_state.step.request
+            await self._producer.send(
+                topic=req.topic,
+                payload=Message(
+                    correlation_id=self.correlation_id, payload=req.command
+                ),
+            )
+
+            # wait for the response
             message = await step_state.fut
 
             step_state.response_payload = message.payload

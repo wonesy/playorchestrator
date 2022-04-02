@@ -61,10 +61,12 @@ class Orchestrator:
             trigger = Trigger(topic=record.topic, payload=record.message.payload)
 
             job_type = self.triggers.get(trigger)
-            if job_type is None:
-                continue
-            corr_id = record.message.correlation_id
-            self._running_jobs[corr_id] = job_type(correlation_id=corr_id)
+            if job_type:
+                corr_id = record.message.correlation_id
+                producer = await self.broker.get_producer()
+                self._running_jobs[corr_id] = job_type(
+                    correlation_id=corr_id, producer=producer
+                )
 
     def start(self) -> None:
         self._trigger_listener_task = asyncio.create_task(

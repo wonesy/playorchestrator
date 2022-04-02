@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from orchestrator import Job, Step, StepRequest, StepResponse, Command, Message
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class _Resp:
     num: int
 

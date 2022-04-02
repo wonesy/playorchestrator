@@ -1,8 +1,10 @@
+from dataclasses import dataclass
 from typing import Any, AsyncIterator, Protocol
 
 from orchestrator.job import Message
 
 
+@dataclass
 class ConsumerRecord:
     topic: str
     message: Message
