@@ -44,8 +44,8 @@ class Job(ABC):
             )
             for s in self.steps
         ]
-        self._job_result: Optional[asyncio.Future[JobResult]] = None
-        self._task: Optional[asyncio.Task] = None
+        self._task = asyncio.create_task(self._start())
+        self._job_result = asyncio.Future()
 
     def _cur_step_state(self) -> StepState:
         if self._current_step_idx >= len(self._step_states):
@@ -63,9 +63,21 @@ class Job(ABC):
             and type(message.payload) == expected_response.payload_type
         )
 
+    @classmethod
+    def response_topics(cls) -> list[str]:
+        return [s.response.topic for s in cls.steps]
+
     def handle_message(self, topic: str, message: Message):
         if self._step_response_satisfied(topic, message):
             self._cur_step_state().fut.set_result(message)
+
+    async def cancel(self) -> None:
+        if self._task is not None:
+            with suppress(asyncio.CancelledError):
+                self._task.cancel()
+                await self._task
+        if not self._job_result.done():
+            self._job_result.set_result(JobResult.CANCELLED)
 
     async def _start(self) -> None:
         for i, step_state in enumerate(self._step_states):
@@ -81,18 +93,6 @@ class Job(ABC):
             step_state.status = StepStatus.COMPLETED
 
         self._job_result.set_result(JobResult.COMPLETED)
-
-    def start(self) -> None:
-        self._task = asyncio.create_task(self._start())
-        self._job_result = asyncio.Future()
-
-    async def cancel(self) -> None:
-        if self._task is not None:
-            with suppress(asyncio.CancelledError):
-                self._task.cancel()
-                await self._task
-        if not self._job_result.done():
-            self._job_result.set_result(JobResult.CANCELLED)
 
     def __await__(self) -> JobResult:
         if self._job_result is None:

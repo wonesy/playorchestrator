@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 import uuid
 import pytest
@@ -37,7 +38,6 @@ class ReadySetGoJob(Job):
 async def test_job():
     corr_id = str(uuid.uuid1())
     job = ReadySetGoJob(correlation_id=corr_id)
-    job.start()
 
     # ready
     job.handle_message(
@@ -65,3 +65,25 @@ async def test_job():
     assert job._step_states[0].response_payload.num == 0
     assert job._step_states[1].response_payload.num == 1
     assert job._step_states[2].response_payload.num == 2
+
+
+async def test_job_fail():
+    corr_id = str(uuid.uuid1())
+    job = ReadySetGoJob(correlation_id=corr_id)
+
+    # "set", skip "ready"
+    job.handle_message(
+        topic="topic.resp.set",
+        message=Message(correlation_id=corr_id, payload=_Resp(0)),
+    )
+
+    with pytest.raises(asyncio.TimeoutError):
+        await wait_for(lambda: job._step_states[0].status == StepStatus.COMPLETED)
+
+
+async def test_job_response_topics():
+    assert [
+        "topic.resp.rdy",
+        "topic.resp.set",
+        "topic.resp.go",
+    ] == ReadySetGoJob.response_topics()
