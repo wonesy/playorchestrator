@@ -15,7 +15,7 @@ class JobResult(Enum):
     CANCELLED = 3
 
 
-class Status(Enum):
+class StepStatus(Enum):
     NOT_STARTED = 1
     STARTED = 2
     COMPLETED = 3
@@ -24,7 +24,7 @@ class Status(Enum):
 @dataclass
 class StepState:
     step: Step
-    status: Status
+    status: StepStatus
     response_payload: Any
     fut: asyncio.Future[Message]
 
@@ -38,7 +38,7 @@ class Job(ABC):
         self._step_states: list[StepState] = [
             StepState(
                 step=s,
-                status=Status.NOT_STARTED,
+                status=StepStatus.NOT_STARTED,
                 response_payload=None,
                 fut=asyncio.Future(),
             )
@@ -73,12 +73,12 @@ class Job(ABC):
             # ...
 
             self._current_step_idx = i
-            step_state.status = Status.STARTED
+            step_state.status = StepStatus.STARTED
 
             message = await step_state.fut
 
             step_state.response_payload = message.payload
-            step_state.status = Status.COMPLETED
+            step_state.status = StepStatus.COMPLETED
 
         self._job_result.set_result(JobResult.COMPLETED)
 
