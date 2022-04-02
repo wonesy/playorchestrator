@@ -1,38 +1,14 @@
 import asyncio
-from dataclasses import dataclass
 import uuid
 import pytest
 
-from orchestrator import Job, Step, StepRequest, StepResponse, Command, Message
+from orchestrator import Message
 from orchestrator.job import JobResult, StepStatus
+
+from .jobdefs import ReadySetGoJob, _Resp
 from .util import wait_for
 
 pytestmark = pytest.mark.asyncio
-
-
-@dataclass
-class _Resp:
-    num: int
-
-
-class ReadySetGoJob(Job):
-    steps = [
-        Step(
-            name="Ready",
-            request=StepRequest(topic="topic.commands", command=Command.READY),
-            response=StepResponse(topic="topic.resp.rdy", payload_type=_Resp),
-        ),
-        Step(
-            name="Set",
-            request=StepRequest(topic="topic.commands", command=Command.SET),
-            response=StepResponse(topic="topic.resp.set", payload_type=_Resp),
-        ),
-        Step(
-            name="Go",
-            request=StepRequest(topic="topic.commands", command=Command.GO),
-            response=StepResponse(topic="topic.resp.go", payload_type=_Resp),
-        ),
-    ]
 
 
 async def test_job():
@@ -79,6 +55,8 @@ async def test_job_fail():
 
     with pytest.raises(asyncio.TimeoutError):
         await wait_for(lambda: job._step_states[0].status == StepStatus.COMPLETED)
+    await job.cancel()
+    assert await job == JobResult.CANCELLED
 
 
 async def test_job_response_topics():

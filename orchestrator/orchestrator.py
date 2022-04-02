@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from typing import Any, NamedTuple, Optional, Type, TypeVar
 
 from orchestrator import Job
@@ -70,3 +71,16 @@ class Orchestrator:
             self._start_trigger_listener()
         )
         self._job_listener_task = asyncio.create_task(self._start_job_listener())
+
+    async def cancel(self) -> None:
+        # cancel all of the running jobs first
+        for job in self._running_jobs.values():
+            await job.cancel()
+
+        # cancel the two listener tasks
+        with suppress(asyncio.CancelledError):
+            self._trigger_listener_task.cancel()
+            self._job_listener_task.cancel()
+
+            await self._trigger_listener_task
+            await self._job_listener_task
